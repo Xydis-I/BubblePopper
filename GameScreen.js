@@ -165,13 +165,19 @@ export default function GameScreen() {
   useEffect(() => {
     if (!isFiring) return;
 
-    const interval = setInterval(() => {
+    let animationId;
+
+    const updateLaser = () => {
       const laserX = gunPosition + gunWidth / 2;
       checkHits(laserX);
-    }, 10);
+      animationId = requestAnimationFrame(updateLaser);
+    };
 
-    return () => clearInterval(interval);
+    animationId = requestAnimationFrame(updateLaser);
+
+    return () => cancelAnimationFrame(animationId);
   }, [isFiring, gunPosition]);
+
 
 
   /**
