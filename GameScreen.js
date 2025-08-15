@@ -248,7 +248,7 @@ export default function GameScreen() {
     bubbleIdRef.current = 1;
     
     // Start spawning bubbles every 500ms
-    bubbleTimerRef.current = setInterval(spawnBubble, 500);
+    bubbleTimerRef.current = setInterval(spawnBubble, 250);
     
     // Start countdown timer
     timerRef.current = setInterval(() => {
@@ -294,7 +294,7 @@ export default function GameScreen() {
         const updatedBubbles = prev
           .map(bubble => ({
             ...bubble,
-            y: bubble.y - 2, // Move bubbles up
+            y: bubble.y - 4, // Move bubbles up
           }))
           .filter(bubble => bubble.y > -60); // Remove bubbles that exit the top
         
