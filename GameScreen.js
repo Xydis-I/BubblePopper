@@ -44,6 +44,7 @@ export default function GameScreen() {
    * - gameStarted/gameOver: Control game flow
    * - score/timeLeft: Track player progress
    * - bubbles: Array of bubble objects with positions
+   * - isFiring: Tracks if the laser is currently active
    * - laserVisible: Controls when the laser is shown
    */
   const [gameStarted, setGameStarted] = useState(false);
@@ -52,7 +53,6 @@ export default function GameScreen() {
   const [timeLeft, setTimeLeft] = useState(120);
   const [bubbles, setBubbles] = useState([]);
   const [isFiring, setIsFiring] = useState(false);
-  const [laser, setLaser] = useState(null);
   const [laserVisible, setLaserVisible] = useState(false);
   
   /**
@@ -74,7 +74,6 @@ export default function GameScreen() {
   // Fixed gun position - currently in the middle (MODIFY THIS)
   const gunHeight = 60;
   const gunWidth = 60;
-  //const gunPosition = screenWidth / 2 - gunWidth / 2;
   const [gunPosition, setGunPosition] = useState(screenWidth / 2 - gunWidth / 2);
   const gunPositionRef = useRef(gunPosition);
 
@@ -98,9 +97,6 @@ export default function GameScreen() {
     })
   ).current;
 
-
-  //const gunCenterX = screenWidth / 2;
-  // const [gunCenterX, setGunCenterX] = useState(screenWidth / 2 - gunWidth / 2);
   
   /**
    * ============== STUDENT TASK 2 ==============
@@ -248,7 +244,7 @@ export default function GameScreen() {
     setLaserVisible(false);
     bubbleIdRef.current = 1;
     
-    // Start spawning bubbles every 500ms
+    // Start spawning bubbles every 250ms
     bubbleTimerRef.current = setInterval(spawnBubble, 250);
     
     // Start countdown timer
@@ -347,7 +343,6 @@ export default function GameScreen() {
            * 3. Consider adding a cooldown or power meter
            */}
           
-          {/* Laser - currently fixed to fire from center of gun */}
           {laserVisible && (
             <View
               style={[
@@ -443,7 +438,7 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   overlay: {
@@ -505,7 +500,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 100,
-    width: 4,
+    width: 6,
     height: '93.4%',
     backgroundColor: '#ff0000',
     shadowColor: '#ff0000',
