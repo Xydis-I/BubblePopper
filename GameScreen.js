@@ -31,7 +31,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, TouchableWithoutFeedback, PanResponder } from 'react-native';
 import Bubble from './components/Bubble';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -51,6 +51,8 @@ export default function GameScreen() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120);
   const [bubbles, setBubbles] = useState([]);
+  const [isFiring, setIsFiring] = useState(false);
+  const [laser, setLaser] = useState(null);
   const [laserVisible, setLaserVisible] = useState(false);
   
   /**
@@ -70,11 +72,35 @@ export default function GameScreen() {
    */
   
   // Fixed gun position - currently in the middle (MODIFY THIS)
+  const gunHeight = 60;
   const gunWidth = 60;
   //const gunPosition = screenWidth / 2 - gunWidth / 2;
   const [gunPosition, setGunPosition] = useState(screenWidth / 2 - gunWidth / 2);
+  const gunPositionRef = useRef(gunPosition);
+
+
+  useEffect(() => {
+    gunPositionRef.current = gunPosition;
+  }, [gunPosition]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (event, gestureState) => {
+        const fingerX = event.nativeEvent.pageX;
+        const clampedX = Math.max(
+          0,
+          Math.min(fingerX - gunWidth / 2, screenWidth - gunWidth)
+        );
+        setGunPosition(clampedX);
+      }
+    })
+  ).current;
+
+
   //const gunCenterX = screenWidth / 2;
-  const [gunCenterX, setGunCenterX] = useState(screenWidth / 2 - gunWidth / 2);
+  // const [gunCenterX, setGunCenterX] = useState(screenWidth / 2 - gunWidth / 2);
   
   /**
    * ============== STUDENT TASK 2 ==============
@@ -103,55 +129,51 @@ export default function GameScreen() {
    * Handle tap to shoot laser
    * Currently fires the laser on any tap when game is active
    */
-  const handleTap = (event) => {
+  const handleTouchStart = (event) => {
     if (!gameStarted || gameOver) return;
 
-    const { pageX } = event.nativeEvent;
-    const clampedX = Math.max(0, Math.min(pageX - gunWidth / 2, screenWidth - gunWidth));
+    const fingerX = event.nativeEvent.pageX;
+    const clampedX = Math.max(
+      0,
+      Math.min(fingerX - gunWidth / 2, screenWidth - gunWidth)
+    );
     setGunPosition(clampedX);
-    setGunCenterX(clampedX + gunWidth / 2);
 
-    fireLaser(clampedX + gunWidth / 2);
-  };
-  
-  /**
-   * Fire a laser from the gun center
-   * Creates visible laser and checks for bubble hits
-   */
-  const fireLaser = (laserX) => {
-    // Clear any existing laser timeout
+    setIsFiring(true);
+    setLaserVisible(true);
+
+    // Clear any previous timeout
     if (laserTimeoutRef.current) {
       clearTimeout(laserTimeoutRef.current);
     }
-    
-    // Make laser visible
-    setLaserVisible(true);
-    
-    /**
-     * ============== STUDENT TASK 3 ==============
-     * TODO: MODIFY LASER FIRING
-     * 
-     * Currently the laser always fires from the center.
-     * Update this to:
-     * 1. Fire from the current gun position
-     * 2. Consider firing angle/direction based on gun orientation
-     * 3. Add visual or sound effects for better feedback
-     * 
-     * Example implementation approach:
-     * - Calculate laser end point based on angle
-     * - Update laser rendering to show angled beam
-     * - Add impact effects when laser hits bubbles
-     */
-    
-    // Check for hits immediately
-    checkHits(laserX);
-    
-    // Make laser disappear after 300ms
+
+    // Hide laser after 300ms
     laserTimeoutRef.current = setTimeout(() => {
+      setIsFiring(false);
       setLaserVisible(false);
     }, 300);
   };
-  
+
+
+
+  const handleTouchEnd = () => {
+    console.log("Untouched!");
+    // setIsFiring(false);
+    // setLaserVisible(false);
+  };
+
+  useEffect(() => {
+    if (!isFiring) return;
+
+    const interval = setInterval(() => {
+      const laserX = gunPosition + gunWidth / 2;
+      checkHits(laserX);
+    }, 10);
+
+    return () => clearInterval(interval);
+  }, [isFiring, gunPosition]);
+
+
   /**
    * Check if laser hits any bubbles
    * @param {number} laserX - X coordinate of the laser
@@ -160,47 +182,33 @@ export default function GameScreen() {
     setBubbles(prevBubbles => {
       const hitBubbleIds = [];
       let hitCount = 0;
-      
-      /**
-       * ============== STUDENT TASK 4 ==============
-       * TODO: IMPROVE COLLISION DETECTION
-       * 
-       * The current collision only works on X axis.
-       * Enhance it to:
-       * 1. Consider both X and Y coordinates
-       * 2. Account for gun position and angle
-       * 3. Add smarter targeting or auto-aiming features
-       * 
-       * Example implementation approach:
-       * - Calculate distance between laser line and bubble center
-       * - Use line-circle intersection algorithms for angled lasers
-       * - Consider adding laser width for more realistic collision
-       */
-      
-      // Check each bubble for collision
+
       prevBubbles.forEach(bubble => {
-        // Calculate bubble center
         const bubbleCenterX = bubble.x + bubble.radius;
-        
-        // Check if laser x-coordinate is within bubble's horizontal range
+        const bubbleCenterY = bubble.y + bubble.radius;
+
         const distanceX = Math.abs(bubbleCenterX - laserX);
-        
-        // If laser is within bubble radius, it's a hit
-        if (distanceX <= bubble.radius) {
+        const laserTop = 0;
+        const laserBottom = screenHeight - gunHeight;
+
+        // Check X and Y overlap
+        const isXOverlap = distanceX <= bubble.radius;
+        const isYOverlap = bubbleCenterY >= laserTop && bubbleCenterY <= laserBottom;
+
+        if (isXOverlap && isYOverlap) {
           hitBubbleIds.push(bubble.id);
           hitCount++;
         }
       });
-      
-      // If any bubbles were hit, update the score
+
       if (hitCount > 0) {
         setScore(prevScore => prevScore + hitCount);
       }
-      
-      // Return bubbles that weren't hit
+
       return prevBubbles.filter(bubble => !hitBubbleIds.includes(bubble.id));
     });
   };
+
   
   /**
    * Spawn a new bubble with random horizontal position
@@ -304,9 +312,13 @@ export default function GameScreen() {
   }, []);
   
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       {/* Game area */}
-      <TouchableWithoutFeedback onPress={handleTap} disabled={!gameStarted || gameOver}>
+      <TouchableWithoutFeedback
+        onPressIn={handleTouchStart}
+        onPressOut={handleTouchEnd}
+        disabled={!gameStarted || gameOver}
+      >
         <View style={styles.gameArea}>
           {/* Bubbles */}
           {bubbles.map(bubble => (
@@ -333,11 +345,12 @@ export default function GameScreen() {
             <View
               style={[
                 styles.laser,
-                { left: gunCenterX - 2 } // Center the 4px wide laser from gun center
+                { left: gunPosition + gunWidth / 2 - 2 }
               ]}
             />
           )}
-          
+
+
           {/**
            * ============== STUDENT TASK 6 ==============
            * TODO: MODIFY GUN RENDERING
@@ -349,7 +362,9 @@ export default function GameScreen() {
            */}
           
           {/* Gun - currently static in middle */}
-          <View style={[styles.gun, { left: gunPosition }]}>
+          <View
+            style={[styles.gun, { left: gunPosition }]}
+          >
             <View style={styles.gunBase} />
             <View style={styles.gunBarrel} />
           </View>
