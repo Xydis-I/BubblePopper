@@ -229,6 +229,7 @@ export default function GameScreen() {
       x: Math.random() * maxX,
       y: screenHeight - 100, // Start near bottom of screen
       radius: radius,
+      speed: 2 + Math.random() * 3,
     };
     
     setBubbles(prev => [...prev, newBubble]);
@@ -294,7 +295,7 @@ export default function GameScreen() {
         const updatedBubbles = prev
           .map(bubble => ({
             ...bubble,
-            y: bubble.y - 4, // Move bubbles up
+            y: bubble.y - bubble.speed, // Move bubbles up
           }))
           .filter(bubble => bubble.y > -60); // Remove bubbles that exit the top
         
